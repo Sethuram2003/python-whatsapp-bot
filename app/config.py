@@ -1,5 +1,3 @@
-import sys
-import logging
 from pydantic_settings import BaseSettings
 from pydantic import Field
 
@@ -15,10 +13,3 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         extra = "ignore"  
-
-def configure_logging():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        stream=sys.stdout,
-    )
