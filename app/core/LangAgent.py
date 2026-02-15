@@ -3,10 +3,22 @@ from langchain.agents import create_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient  
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain_ollama import ChatOllama
+from dotenv import load_dotenv
+import os
+import sys
 
 from app.core.prompt import SYSTEM_PROMPT
 
+load_dotenv()
+
 checkpointer = InMemorySaver()
+
+def find_python_path():
+    """Find Python binary path with packages"""
+    return sys.executable 
+
+python_executable = find_python_path()
+current_dir = os.path.dirname(os.path.abspath(__file__))
 
 config = {
     "configurable": {
@@ -16,9 +28,15 @@ config = {
 
 
 async def chat_agent():
-    llm = ChatOllama(model="lfm2.5-thinking:latest", temperature=0.9) 
+    llm = ChatOllama(model="llama3.1:8b", temperature=0.9) 
 
-    McpConfig={}
+    McpConfig={
+            "pipe_status": {
+            "command": "python3", 
+            "args": ["/Users/sethuramgauthamr/Documents/Projects/python-whatsapp-bot/app/core/McpServers/PipeStatus/main.py"],
+            "transport": "stdio"
+        }
+    }
 
     client = MultiServerMCPClient(McpConfig)
     tools = await client.get_tools()
@@ -38,7 +56,7 @@ async def main():
 
     response = await agent.ainvoke({
         "messages": [
-            {"role": "user", "content": "Hi how are you?"}
+            {"role": "user", "content": "What pipes are directly connected to pipe B23"}
         ]
     }, config)
 
