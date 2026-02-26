@@ -3,7 +3,7 @@ import json
 import requests
 import re
 from app.core.LangAgent import chat_agent
-from app.config import Settings
+from app.core.config import Settings
 
 def log_http_response(response):
     logging.info(f"Status: {response.status_code}")

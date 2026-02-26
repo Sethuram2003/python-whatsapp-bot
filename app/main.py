@@ -1,6 +1,8 @@
 from fastapi import FastAPI
-from app.config import Settings
+from app.core.config import Settings
 from app.api.routes.webhook import router as webhook_router
+from dotenv import load_dotenv
+load_dotenv()
 
 settings = Settings()
 

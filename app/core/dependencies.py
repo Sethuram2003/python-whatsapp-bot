@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import logging
 from fastapi import Request, HTTPException, Depends
-from app.config import Settings
+from app.core.config import Settings
 from functools import lru_cache
 
 @lru_cache()
