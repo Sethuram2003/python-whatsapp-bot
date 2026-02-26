@@ -3,22 +3,14 @@ from langchain.agents import create_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient  
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain_ollama import ChatOllama
+from langchain_groq import ChatGroq
 from dotenv import load_dotenv
-import os
-import sys
 
 from app.core.prompt import SYSTEM_PROMPT
 
 load_dotenv()
 
 checkpointer = InMemorySaver()
-
-def find_python_path():
-    """Find Python binary path with packages"""
-    return sys.executable 
-
-python_executable = find_python_path()
-current_dir = os.path.dirname(os.path.abspath(__file__))
 
 config = {
     "configurable": {
@@ -28,12 +20,12 @@ config = {
 
 
 async def chat_agent():
-    llm = ChatOllama(model="llama3.1:8b", temperature=0.9) 
+    llm = ChatGroq(model="openai/gpt-oss-120b")
 
     McpConfig={
-            "pipe_status": {
+            "BasicUtilityServer": {
             "command": "python3", 
-            "args": ["/Users/sethuramgauthamr/Documents/Projects/python-whatsapp-bot/app/core/McpServers/PipeStatus/main.py"],
+            "args": ["/Users/sethuramgauthamr/Documents/Projects/python-whatsapp-bot/app/core/McpServers/SimpleMcp/main.py"],
             "transport": "stdio"
         }
     }
