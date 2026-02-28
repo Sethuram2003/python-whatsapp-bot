@@ -1,8 +1,14 @@
 from mcp.server.fastmcp import FastMCP
 import datetime
 import random
+from fastapi import Depends
+from auth import verify_api_key
 
 mcp = FastMCP("BasicUtilityServer")
+
+mcp.settings.port = 8001
+mcp.settings.host = "0.0.0.0"
+mcp.dependencies.append(Depends(verify_api_key))
 
 @mcp.tool()
 async def add_numbers(a: int, b: int) -> int:
@@ -28,4 +34,4 @@ async def random_number(min_value: int, max_value: int) -> int:
 
 if __name__ == "__main__":
     print("Starting BasicUtilityServer MCP...")
-    mcp.run()
+    mcp.run(transport="streamable-http")

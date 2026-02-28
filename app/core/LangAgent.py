@@ -5,8 +5,9 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langchain_ollama import ChatOllama
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
+import os
 
-from app.core.prompt import SYSTEM_PROMPT
+from app.core.prompt import SYSTEM_PROMPT 
 
 load_dotenv()
 
@@ -18,15 +19,17 @@ config = {
     }
 }
 
-
 async def chat_agent():
     llm = ChatGroq(model="openai/gpt-oss-120b")
+    # llm = ChatOllama(model="llama3.1:8b")
 
     McpConfig={
-            "BasicUtilityServer": {
-            "command": "python3", 
-            "args": ["/Users/sethuramgauthamr/Documents/Projects/python-whatsapp-bot/app/core/McpServers/SimpleMcp/main.py"],
-            "transport": "stdio"
+            "googlescholar": {
+                "url": "http://simplemcp:8001/mcp",
+                "transport": "streamable_http",
+                "headers": {
+                    "X-API-Key": os.getenv("API_KEY"),
+                }
         }
     }
 
@@ -48,7 +51,7 @@ async def main():
 
     response = await agent.ainvoke({
         "messages": [
-            {"role": "user", "content": "What pipes are directly connected to pipe B23"}
+            {"role": "user", "content": "What are the tools you have"}
         ]
     }, config)
 

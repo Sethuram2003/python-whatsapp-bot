@@ -170,6 +170,22 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi"
+version = "0.134.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "annotated-doc" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/96/15/647ea81cb73b55b48fb095158a9cd64e42e9e4f1d34dbb5cc4a4939779d6/fastapi-0.134.0.tar.gz", hash = "sha256:3122b1ea0dbeaab48b5976e80b99ca7eda02be154bf03e126a33220e73255a9a", size = 385667, upload-time = "2026-02-27T21:18:12.931Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e3/e6/fd49c28a54b7d6f5c64045155e40f6cff9ed4920055043fb5ac7969f7f2f/fastapi-0.134.0-py3-none-any.whl", hash = "sha256:f4e7214f24b2262258492e05c48cf21125e4ffc427e30dd32fb4f74049a3d56a", size = 110404, upload-time = "2026-02-27T21:18:10.809Z" },
+]
+
+[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -554,11 +570,17 @@ name = "simplemcp"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "fastapi" },
     { name = "mcp", extra = ["cli"] },
+    { name = "uvicorn" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "mcp", extras = ["cli"], specifier = ">=1.26.0" }]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.134.0" },
+    { name = "mcp", extras = ["cli"], specifier = ">=1.26.0" },
+    { name = "uvicorn", specifier = ">=0.41.0" },
+]
 
 [[package]]
 name = "sse-starlette"
