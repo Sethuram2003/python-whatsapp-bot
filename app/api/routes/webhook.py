@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, Request, Depends, HTTPException
-from app.dependencies import get_settings, verify_signature
-from app.config import Settings
+from app.core.dependencies import get_settings, verify_signature
+from app.core.config import Settings
 from app.core.WhatsApp import process_whatsapp_message, is_valid_whatsapp_message
 
 router = APIRouter()

@@ -3,8 +3,13 @@ from langchain.agents import create_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient  
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain_ollama import ChatOllama
+from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+import os
 
-from app.core.prompt import SYSTEM_PROMPT
+from app.core.prompt import SYSTEM_PROMPT 
+
+load_dotenv()
 
 checkpointer = InMemorySaver()
 
@@ -14,11 +19,19 @@ config = {
     }
 }
 
-
 async def chat_agent():
-    llm = ChatOllama(model="lfm2.5-thinking:latest", temperature=0.9) 
+    llm = ChatGroq(model="openai/gpt-oss-120b")
+    # llm = ChatOllama(model="llama3.1:8b")
 
-    McpConfig={}
+    McpConfig={
+            "googlescholar": {
+                "url": "http://simplemcp:8001/mcp",
+                "transport": "streamable_http",
+                "headers": {
+                    "X-API-Key": os.getenv("API_KEY"),
+                }
+        }
+    }
 
     client = MultiServerMCPClient(McpConfig)
     tools = await client.get_tools()
@@ -38,7 +51,7 @@ async def main():
 
     response = await agent.ainvoke({
         "messages": [
-            {"role": "user", "content": "Hi how are you?"}
+            {"role": "user", "content": "What are the tools you have"}
         ]
     }, config)
 
