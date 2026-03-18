@@ -1,208 +1,280 @@
-# Build AI WhatsApp Bots with Pure Python
+# 🤖 AI WhatsApp Bot
 
-This guide will walk you through the process of creating a WhatsApp bot using the Meta (formerly Facebook) Cloud API with pure Python, and Flask particular. We'll also integrate webhook events to receive messages in real-time and use OpenAI to generate AI responses. For more information on the structure of the Flask application, you can refer to [this documentation](https://github.com/daveebbelaar/python-whatsapp-bot/tree/main/app).
+A production-ready AI-powered WhatsApp bot built with **FastAPI**, **LangGraph**, and **MCP (Model Context Protocol)**. Supports text and image messages, tool-calling agents, and a pluggable MCP server architecture — all containerized with Docker.
 
-## Prerequisites
+---
 
-1. A Meta developer account — If you don’t have one, you can [create a Meta developer account here](https://developers.facebook.com/).
-2. A business app — If you don't have one, you can [learn to create a business app here](https://developers.facebook.com/docs/development/create-an-app/). If you don't see an option to create a business app, select **Other** > **Next** > **Business**.
-3. Familiarity with Python to follow the tutorial.
+## ✨ Features
 
+- 📨 **Receive & respond to WhatsApp messages** via Meta Cloud API webhooks
+- 🧠 **Agentic AI responses** powered by LangGraph + LangChain (Ollama / Groq models)
+- 🖼️ **Image understanding** — downloads, summarizes, and responds to image messages
+- 🔧 **MCP tool support** — extensible via the included `SimpleMcp` server (time, random, math) or external MCP servers (e.g. Tavily web search)
+- 🔒 **Webhook security** — SHA-256 signature validation on all incoming payloads
+- 🐳 **Fully Dockerized** — FastAPI bot + MCP server run as separate services via Docker Compose
+- 💬 **Conversation memory** — per-user thread state via LangGraph `InMemorySaver`
 
-## Table of Contents
+---
 
-- [Build AI WhatsApp Bots with Pure Python](#build-ai-whatsapp-bots-with-pure-python)
-  - [Prerequisites](#prerequisites)
-  - [Table of Contents](#table-of-contents)
-  - [Get Started](#get-started)
-  - [Step 1: Select Phone Numbers](#step-1-select-phone-numbers)
-  - [Step 2: Send Messages with the API](#step-2-send-messages-with-the-api)
-  - [Step 3: Configure Webhooks to Receive Messages](#step-3-configure-webhooks-to-receive-messages)
-      - [Start your app](#start-your-app)
-      - [Launch ngrok](#launch-ngrok)
-      - [Integrate WhatsApp](#integrate-whatsapp)
-      - [Testing the Integration](#testing-the-integration)
-  - [Step 4: Understanding Webhook Security](#step-4-understanding-webhook-security)
-      - [Verification Requests](#verification-requests)
-      - [Validating Verification Requests](#validating-verification-requests)
-      - [Validating Payloads](#validating-payloads)
-  - [Step 5: Learn about the API and Build Your App](#step-5-learn-about-the-api-and-build-your-app)
-  - [Step 6: Integrate AI into the Application](#step-6-integrate-ai-into-the-application)
-  - [Step 7: Add a Phone Number](#step-7-add-a-phone-number)
-  - [Datalumina](#datalumina)
-  - [Tutorials](#tutorials)
+## 🏗️ Architecture
 
-## Get Started
-
-1. **Overview & Setup**: Begin your journey [here](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started).
-2. **Locate Your Bots**: Your bots can be found [here](https://developers.facebook.com/apps/).
-3. **WhatsApp API Documentation**: Familiarize yourself with the [official documentation](https://developers.facebook.com/docs/whatsapp).
-4. **Helpful Guide**: Here's a [Python-based guide](https://developers.facebook.com/blog/post/2022/10/24/sending-messages-with-whatsapp-in-your-python-applications/) for sending messages.
-5. **API Docs for Sending Messages**: Check out [this documentation](https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-messages).
-
-## Step 1: Select Phone Numbers
-
-- Make sure WhatsApp is added to your App.
-- You begin with a test number that you can use to send messages to up to 5 numbers.
-- Go to API Setup and locate the test number from which you will be sending messages.
-- Here, you can also add numbers to send messages to. Enter your **own WhatsApp number**.
-- You will receive a code on your phone via WhatsApp to verify your number.
-
-## Step 2: Send Messages with the API
-
-1. Obtain a 24-hour access token from the API access section.
-2. It will show an example of how to send messages using a `curl` command which can be send from the terminal or with a tool like Postman.
-3. Let's convert that into a [Python function with the request library](https://github.com/daveebbelaar/python-whatsapp-bot/blob/main/start/whatsapp_quickstart.py).
-4. Create a `.env` files based on `example.env` and update the required variables. [Video example here](https://www.youtube.com/watch?v=sOwG0bw0RNU).
-5. You will receive a "Hello World" message (Expect a 60-120 second delay for the message).
-
-Creating an access that works longer then 24 hours
-1. Create a [system user at the Meta Business account level](https://business.facebook.com/settings/system-users).
-2. On the System Users page, configure the assets for your System User, assigning your WhatsApp app with full control. Don't forget to click the Save Changes button.
-   - [See step 1 here](https://github.com/daveebbelaar/python-whatsapp-bot/blob/main/img/meta-business-system-user-token.png)
-   - [See step 2 here](https://github.com/daveebbelaar/python-whatsapp-bot/blob/main/img/adding-assets-to-system-user.png)
-3. Now click `Generate new token` and select the app, and then choose how long the access token will be valid. You can choose 60 days or never expire.
-4. Select all the permissions, as I was running into errors when I only selected the WhatsApp ones.
-5. Confirm and copy the access token.
-
-Now we have to find the following information on the **App Dashboard**:
-
-- **APP_ID**: "<YOUR-WHATSAPP-BUSINESS-APP_ID>" (Found at App Dashboard)
-- **APP_SECRET**: "<YOUR-WHATSAPP-BUSINESS-APP_SECRET>" (Found at App Dashboard)
-- **RECIPIENT_WAID**: "<YOUR-RECIPIENT-TEST-PHONE-NUMBER>" (This is your WhatsApp ID, i.e., phone number. Make sure it is added to the account as shown in the example test message.)
-- **VERSION**: "v18.0" (The latest version of the Meta Graph API)
-- **ACCESS_TOKEN**: "<YOUR-SYSTEM-USER-ACCESS-TOKEN>" (Created in the previous step)
-
-> You can only send a template type message as your first message to a user. That's why you have to send a reply first before we continue. Took me 2 hours to figure this out.
-
-
-## Step 3: Configure Webhooks to Receive Messages
-
-> Please note, this is the hardest part of this tutorial.
-
-#### Start your app
-- Make you have a python installation or environment and install the requirements: `pip install -r requirements.txt`
-- Run your Flask app locally by executing [run.py](https://github.com/daveebbelaar/python-whatsapp-bot/blob/main/run.py)
-
-#### Launch ngrok
-
-The steps below are taken from the [ngrok documentation](https://ngrok.com/docs/integrations/whatsapp/webhooks/).
-
-> You need a static ngrok domain because Meta validates your ngrok domain and certificate!
-
-Once your app is running successfully on localhost, let's get it on the internet securely using ngrok!
-
-1. If you're not an ngrok user yet, just sign up for ngrok for free.
-2. Download the ngrok agent.
-3. Go to the ngrok dashboard, click Your [Authtoken](https://dashboard.ngrok.com/get-started/your-authtoken), and copy your Authtoken.
-4. Follow the instructions to authenticate your ngrok agent. You only have to do this once.
-5. On the left menu, expand Cloud Edge and then click Domains.
-6. On the Domains page, click + Create Domain or + New Domain. (here everyone can start with [one free domain](https://ngrok.com/blog-post/free-static-domains-ngrok-users))
-7. Start ngrok by running the following command in a terminal on your local desktop:
 ```
+WhatsApp User
+     │  (HTTPS)
+     ▼
+Meta Cloud API
+     │  Webhook POST
+     ▼
+┌─────────────────────────┐
+│   FastAPI App (:8000)   │
+│                         │
+│  POST /webhook          │
+│   ├── Verify signature  │
+│   ├── Parse message     │
+│   │    ├── text         │
+│   │    └── image → summarize (Ollama)
+│   └── LangGraph Agent   │
+│        ├── Groq/Ollama LLM
+│        └── MCP Tools ──►│
+└─────────────────────────┘
+          │ SSE/HTTP
+          ▼
+┌─────────────────────────┐
+│  SimpleMcp Server (:8001)│
+│  Tools:                 │
+│   • get_current_time    │
+│   • add_numbers         │
+│   • random_number       │
+└─────────────────────────┘
+```
+
+---
+
+## 📁 Project Structure
+
+```
+├── app/
+│   ├── main.py                  # FastAPI entrypoint
+│   ├── api/routes/
+│   │   └── webhook.py           # GET (verification) + POST (messages)
+│   └── core/
+│       ├── config.py            # Pydantic settings from .env
+│       ├── dependencies.py      # Signature verification dependency
+│       ├── LangAgent.py         # LangGraph agent factory (chat + image)
+│       ├── prompt.py            # System prompts
+│       └── WhatsApp.py          # Message processing & Meta API calls
+├── McpServers/
+│   └── SimpleMcp/
+│       ├── main.py              # FastMCP server with utility tools
+│       ├── auth.py              # API key middleware
+│       └── Dockerfile
+├── docker/fastapi/Dockerfile
+├── compose.yaml
+└── example.env
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- [Docker & Docker Compose](https://docs.docker.com/get-docker/)
+- A [Meta Developer account](https://developers.facebook.com/) with a WhatsApp Business App
+- [ngrok](https://ngrok.com/) (for local development)
+
+---
+
+### 1. Clone & Configure
+
+```bash
+git clone <your-repo-url>
+cd sethuram2003-python-whatsapp-bot
+```
+
+Copy the example environment file and fill in your credentials:
+
+```bash
+cp example.env .env
+```
+
+```env
+# .env
+ACCESS_TOKEN=""          # Meta API access token (24h or system user token)
+APP_ID=""                # Meta App ID
+APP_SECRET=""            # Meta App Secret (used for webhook signature verification)
+RECIPIENT_WAID=""        # Your WhatsApp number with country code (e.g. +91XXXXXXXXXX)
+VERSION="v18.0"          # Meta Graph API version
+PHONE_NUMBER_ID=""       # WhatsApp Business phone number ID
+VERIFY_TOKEN=""          # Any string you choose — used for webhook verification
+```
+
+Create the MCP server env file:
+
+```bash
+cp McpServers/SimpleMcp/.env.example McpServers/SimpleMcp/.env  # or create manually
+```
+
+```env
+# McpServers/SimpleMcp/.env
+API_KEY="your-secret-key"
+```
+
+---
+
+### 2. Run with Docker Compose
+
+```bash
+docker compose up --build
+```
+
+| Service    | Port   | Description              |
+|------------|--------|--------------------------|
+| `fastapi`  | `8000` | Main WhatsApp bot API    |
+| `simplemcp`| `8001` | MCP utility tool server  |
+
+---
+
+### 3. Expose with ngrok
+
+> Meta requires a publicly accessible HTTPS URL with a static domain.
+
+```bash
 ngrok http 8000 --domain your-domain.ngrok-free.app
 ```
-8. ngrok will display a URL where your localhost application is exposed to the internet (copy this URL for use with Meta).
 
+---
 
-#### Integrate WhatsApp
+### 4. Configure the Meta Webhook
 
-In the Meta App Dashboard, go to WhatsApp > Configuration, then click the Edit button.
-1. In the Edit webhook's callback URL popup, enter the URL provided by the ngrok agent to expose your application to the internet in the Callback URL field, with /webhook at the end (i.e. https://myexample.ngrok-free.app/webhook).
-2. Enter a verification token. This string is set up by you when you create your webhook endpoint. You can pick any string you like. Make sure to update this in your `VERIFY_TOKEN` environment variable.
-3. After you add a webhook to WhatsApp, WhatsApp will submit a validation post request to your application through ngrok. Confirm your localhost app receives the validation get request and logs `WEBHOOK_VERIFIED` in the terminal.
-4. Back to the Configuration page, click Manage.
-5. On the Webhook fields popup, click Subscribe to the **messages** field. Tip: You can subscribe to multiple fields.
-6. If your Flask app and ngrok are running, you can click on "Test" next to messages to test the subscription. You recieve a test message in upper case. If that is the case, your webhook is set up correctly.
+1. Go to your [Meta App Dashboard](https://developers.facebook.com/apps/) → **WhatsApp → Configuration**
+2. Set **Callback URL** to: `https://your-domain.ngrok-free.app/webhook`
+3. Set **Verify Token** to the same value as `VERIFY_TOKEN` in your `.env`
+4. Click **Verify and Save** — your app should log `WEBHOOK_VERIFIED`
+5. Click **Manage** → Subscribe to the **messages** field
 
+---
 
-#### Testing the Integration
-Use the phone number associated to your WhatsApp product or use the test number you copied before.
-1. Add this number to your WhatsApp app contacts and then send a message to this number.
-2. Confirm your localhost app receives a message and logs both headers and body in the terminal.
-3. Test if the bot replies back to you in upper case.
-4. You have now succesfully integrated the bot! 🎉
-5. Now it's time to acutally build cool things with this.
+## 🔐 Webhook Security
 
+Every incoming POST request is authenticated using **HMAC SHA-256 signature verification**:
 
-## Step 4: Understanding Webhook Security
+1. Meta signs each payload with your `APP_SECRET` and includes it in the `X-Hub-Signature-256` header
+2. The `verify_signature` dependency in `dependencies.py` recomputes the signature and compares it
+3. Requests with missing or mismatched signatures are rejected with `HTTP 403`
 
-Below is some information from the Meta Webhooks API docs about verification and security. It is already implemented in the code, but you can reference it to get a better understanding of what's going on in [security.py](https://github.com/daveebbelaar/python-whatsapp-bot/blob/main/app/decorators/security.py)
+---
 
-#### Verification Requests
+## 🤖 AI Agent
 
-[Source](https://developers.facebook.com/docs/graph-api/webhooks/getting-started#:~:text=process%20these%20requests.-,Verification%20Requests,-Anytime%20you%20configure)
+The bot uses a **LangGraph ReAct agent** with:
 
-Anytime you configure the Webhooks product in your App Dashboard, we'll send a GET request to your endpoint URL. Verification requests include the following query string parameters, appended to the end of your endpoint URL. They will look something like this:
+| Component        | Default             | Purpose                        |
+|------------------|---------------------|--------------------------------|
+| Chat LLM         | `kimi-k2:1t-cloud` (Ollama) | Main conversational agent |
+| Vision LLM       | `qwen3.5:397b-cloud` (Ollama) | Image summarization      |
+| Web Search       | Tavily MCP (`npx tavily-mcp`) | Live web search          |
+| Local Tools      | `SimpleMcp` server  | Time, math, random numbers     |
+| Memory           | `InMemorySaver`     | Per-user thread conversation   |
 
+To swap models, update `LangAgent.py`:
+
+```python
+# Use Groq instead of Ollama
+from langchain_groq import ChatGroq
+llm = ChatGroq(model="llama-3.3-70b-versatile")
 ```
-GET https://www.your-clever-domain-name.com/webhook?
-  hub.mode=subscribe&
-  hub.challenge=1158201444&
-  hub.verify_token=meatyhamhock
+
+---
+
+## 🔧 SimpleMcp Server
+
+The included MCP server provides basic utility tools secured by an API key header (`X-API-Key`).
+
+| Tool              | Description                          |
+|-------------------|--------------------------------------|
+| `get_current_time`| Returns current date and time        |
+| `add_numbers`     | Adds two integers                    |
+| `random_number`   | Returns random int in a given range  |
+
+The server runs on `streamable-http` transport at port `8001`. To add new tools:
+
+```python
+# McpServers/SimpleMcp/main.py
+@mcp.tool()
+async def my_tool(input: str) -> str:
+    """Description of what this tool does."""
+    return result
 ```
 
-The verify_token, `meatyhamhock` in the case of this example, is a string that you can pick. It doesn't matter what it is as long as you store in the `VERIFY_TOKEN` environment variable.
+---
 
-#### Validating Verification Requests
+## 📬 Supported Message Types
 
-[Source](https://developers.facebook.com/docs/graph-api/webhooks/getting-started#:~:text=Validating%20Verification%20Requests)
+| Type    | Handling                                                     |
+|---------|--------------------------------------------------------------|
+| `text`  | Passed directly to the LangGraph agent                       |
+| `image` | Downloaded from Meta API → base64 encoded → summarized by vision LLM → summary passed to agent |
+| Other   | Unsupported type is noted in the agent's context             |
 
-Whenever your endpoint receives a verification request, it must:
-- Verify that the hub.verify_token value matches the string you set in the Verify Token field when you configure the Webhooks product in your App Dashboard (you haven't set up this token string yet).
-- Respond with the hub.challenge value.
+---
 
-#### Validating Payloads
+## 🛠️ Local Development (without Docker)
 
-[Source](https://developers.facebook.com/docs/graph-api/webhooks/getting-started#:~:text=int-,Validating%20Payloads,-We%20sign%20all)
+```bash
+# Install dependencies
+pip install -r requirements.txt
 
-WhatsApp signs all Event Notification payloads with a SHA256 signature and include the signature in the request's X-Hub-Signature-256 header, preceded with sha256=. You don't have to validate the payload, but you should.
+# Run the FastAPI server
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-To validate the payload:
-- Generate a SHA256 signature using the payload and your app's App Secret.
-- Compare your signature to the signature in the X-Hub-Signature-256 header (everything after sha256=). If the signatures match, the payload is genuine.
+# In a separate terminal, run the MCP server
+cd McpServers/SimpleMcp
+python main.py
+```
 
+---
 
-## Step 5: Learn about the API and Build Your App
+## ☁️ Deploying to Production
 
-Review the developer documentation to learn how to build your app and start sending messages. [See documentation](https://developers.facebook.com/docs/whatsapp/cloud-api).
+Build and push the image:
 
-## Step 6: Integrate AI into the Application
+```bash
+# For AMD64 (most cloud providers)
+docker build --platform=linux/amd64 -t your-registry/whatsapp-bot .
+docker push your-registry/whatsapp-bot
+```
 
-Now that we have an end to end connection, we can make the bot a little more clever then just shouting at us in upper case. All you have to do is come up with your own `generate_response()` function in [whatsapp_utils.py](https://github.com/daveebbelaar/python-whatsapp-bot/blob/main/app/utils/whatsapp_utils.py).
+For a long-lived Meta access token (beyond 24 hours):
 
-If you want a cookie cutter example to integrate the OpenAI Assistans API with a retrieval tool, then follow these steps.
-1. Watch this video: [OpenAI Assistants Tutorial](https://www.youtube.com/watch?v=0h1ry-SqINc)
-2. Create your own assistant with OpenAI and update your `OPENAI_API_KEY` and `OPENAI_ASSISTANT_ID` in the environment variables.
-3. Provide your assistant with data and instructions
-4. Update [openai_service.py](https://github.com/daveebbelaar/python-whatsapp-bot/blob/main/app/services/openai_service.py) to your use case.
-5. Import `generate_reponse` into [whatsapp_utils.py](https://github.com/daveebbelaar/python-whatsapp-bot/blob/main/app/utils/)
-6. Update `process_whatsapp_message()` with the new `generate_reponse()` function.
+1. Create a [System User](https://business.facebook.com/settings/system-users) in Meta Business Settings
+2. Assign your WhatsApp app with full control
+3. Generate a token with **60-day** or **never-expire** validity
+4. Select all permissions to avoid API errors
 
-## Step 7: Add a Phone Number
+---
 
-When you’re ready to use your app for a production use case, you need to use your own phone number to send messages to your users.
+## 📋 Environment Variable Reference
 
-To start sending messages to any WhatsApp number, add a phone number. To manage your account information and phone number, [see the Overview page.](https://business.facebook.com/wa/manage/home/) and the [WhatsApp docs](https://developers.facebook.com/docs/whatsapp/phone-numbers/).
+| Variable          | Required | Description                                          |
+|-------------------|----------|------------------------------------------------------|
+| `ACCESS_TOKEN`    | ✅       | Meta API Bearer token for sending messages           |
+| `APP_ID`          | ✅       | Your Meta App ID                                     |
+| `APP_SECRET`      | ✅       | Your Meta App Secret (for signature verification)    |
+| `RECIPIENT_WAID`  | ✅       | Your WhatsApp number with country code               |
+| `VERSION`         | ✅       | Meta Graph API version (e.g. `v18.0`)                |
+| `PHONE_NUMBER_ID` | ✅       | WhatsApp Business phone number ID                    |
+| `VERIFY_TOKEN`    | ✅       | Custom string for webhook verification               |
 
-If you want to use a number that is already being used in the WhatsApp customer or business app, you will have to fully migrate that number to the business platform. Once the number is migrated, you will lose access to the WhatsApp customer or business app. [See Migrate Existing WhatsApp Number to a Business Account for information](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started/migrate-existing-whatsapp-number-to-a-business-account).
+---
 
-Once you have chosen your phone number, you have to add it to your WhatsApp Business Account. [See Add a Phone Number](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started/add-a-phone-number).
+## 📄 License
 
-When dealing with WhatsApp Business API and wanting to experiment without affecting your personal number, you have a few options:
+MIT License — see [LICENCE.txt](./LICENCE.txt)
 
-1. Buy a New SIM Card
-2. Virtual Phone Numbers
-3. Dual SIM Phones
-4. Use a Different Device
-5. Temporary Number Services
-6. Dedicated Devices for Development
+---
 
-**Recommendation**: If this is for a more prolonged or professional purpose, using a virtual phone number service or purchasing a new SIM card for a dedicated device is advisable. For quick tests, a temporary number might suffice, but always be cautious about security and privacy. Remember that once a number is associated with WhatsApp Business API, it cannot be used with regular WhatsApp on a device unless you deactivate it from the Business API and reverify it on the device.
+## 🙏 Credits
 
-## Datalumina
-
-This document is provided to you by Datalumina. We help data analysts, engineers, and scientists launch and scale a successful freelance business — $100k+ /year, fun projects, happy clients. If you want to learn more about what we do, you can visit our [website](https://www.datalumina.com/) and subscribe to our [newsletter](https://www.datalumina.com/newsletter). Feel free to share this document with your data friends and colleagues.
-
-## Tutorials
-For video tutorials, visit the YouTube channel: [youtube.com/@daveebbelaar](https://www.youtube.com/@daveebbelaar).
+Based on the original guide by [Datalumina](https://www.datalumina.com/) / [@daveebbelaar](https://www.youtube.com/@daveebbelaar).
+Extended with LangGraph agents, MCP tool integration, image understanding, and Docker Compose orchestration.
